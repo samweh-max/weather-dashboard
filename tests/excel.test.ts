@@ -9,8 +9,8 @@ beforeAll(() => {
 });
 
 async function toBuffer(wb: ExcelJS.Workbook): Promise<ArrayBuffer> {
-  const b = await wb.xlsx.writeBuffer();
-  return (b as Buffer).buffer.slice((b as Buffer).byteOffset, (b as Buffer).byteOffset + (b as Buffer).byteLength) as ArrayBuffer;
+  const b = new Uint8Array((await wb.xlsx.writeBuffer()) as unknown as ArrayBuffer);
+  return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
 }
 
 async function stationWorkbook() {

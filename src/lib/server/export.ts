@@ -7,6 +7,8 @@ import { convertForDisplay, displayUnit, type UnitPrefs } from '../units';
 import { CATEGORY_LABELS, getVariable, VARIABLES } from '../variables';
 import { getForecast, getHistory, getProvider } from '../providers';
 import { datasetAsWeather } from './datasets';
+import { cached } from './cache';
+import { fetchAirQuality, fetchMarine } from '../providers/openmeteo';
 
 export interface ExportRequest {
   location: Location;
@@ -46,6 +48,15 @@ export async function gatherSources(req: ExportRequest): Promise<{ datasets: Wea
         const ds = datasetAsWeather(src.slice(7), req.start, req.end);
         if (ds) datasets.push(ds);
         else failures.push({ source: src, error: 'Imported dataset not found.' });
+        return;
+      }
+      if (src === 'om-air' || src === 'om-marine') {
+        const key = `${req.location.latitude.toFixed(3)},${req.location.longitude.toFixed(3)}`;
+        try {
+          datasets.push(src === 'om-air' ? await cached(`air:${key}`, 1800, () => fetchAirQuality(req.location)) : await cached(`marine:${key}`, 3600, () => fetchMarine(req.location)));
+        } catch (e) {
+          failures.push({ source: src === 'om-air' ? 'CAMS air quality' : 'Marine forecast', error: (e as Error).message });
+        }
         return;
       }
       const p = getProvider(src);
@@ -172,18 +183,21 @@ function addComparisonSheet(wb: ExcelJS.Workbook, datasets: WeatherDataset[], wh
   const top: (string | null)[] = [which === 'hourly' ? 'Time (local)' : 'Date'];
   const sub: string[] = [''];
   const cols: { v: string; d: number | 'spread' }[] = [];
+  const spans: number[] = [];
   for (const v of vars) {
-    const has = datasets.map((d) => !!d[which]?.series[v]);
-    datasets.forEach((d, di) => {
+    // only sources that actually provide this variable get a column
+    const which_ = datasets.map((d, di) => (d[which]?.series[v] ? di : -1)).filter((di) => di >= 0);
+    which_.forEach((di) => {
       top.push(colLabel(v, req.units));
-      sub.push(has[di] ? d.providerName : `${d.providerName} (not available)`);
+      sub.push(datasets[di].providerName);
       cols.push({ v, d: di });
     });
-    if (datasets.length > 1) {
+    if (which_.length > 1) {
       top.push(colLabel(v, req.units));
       sub.push('Spread (max − min)');
       cols.push({ v, d: 'spread' });
     }
+    spans.push(which_.length + (which_.length > 1 ? 1 : 0));
   }
   ws.addRow(top);
   ws.addRow(sub);
@@ -191,8 +205,7 @@ function addComparisonSheet(wb: ExcelJS.Workbook, datasets: WeatherDataset[], wh
   styleHeader(ws.getRow(2));
   // merge variable headers
   let c = 2;
-  for (let k = 0; k < vars.length; k++) {
-    const span = datasets.length + (datasets.length > 1 ? 1 : 0);
+  for (const span of spans) {
     if (span > 1) ws.mergeCells(1, c, 1, c + span - 1);
     c += span;
   }
@@ -231,7 +244,8 @@ function addStatsSheets(wb: ExcelJS.Workbook, datasets: WeatherDataset[], req: E
   styleHeader(ws.getRow(1));
   const monthly: (string | number | null)[][] = [];
   const annual: (string | number | null)[][] = [];
-  const multiMonth = req.start.slice(0, 7) !== req.end.slice(0, 7);
+  // period summaries only make sense for longer ranges
+  const multiMonth = (Date.parse(req.end) - Date.parse(req.start)) / 86400000 >= 59;
   for (const ds of datasets) {
     for (const which of ['hourly', 'daily'] as const) {
       if (req.resolution !== 'both' && req.resolution !== which) continue;

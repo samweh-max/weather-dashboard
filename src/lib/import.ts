@@ -279,8 +279,8 @@ function columnIsTimeOfDay(rows: Cell[][], col: number, header: string): boolean
   return sample.length > 0 && sample.every((c) => combineTime('2000-01-01T00:00:00', c) !== null);
 }
 
-export function autoConfig(sheet: SheetData, defaultTz: string): ImportConfig {
-  const headerRow = detectHeaderRow(sheet.rows);
+export function autoConfig(sheet: SheetData, defaultTz: string, forcedHeaderRow?: number): ImportConfig {
+  const headerRow = forcedHeaderRow ?? detectHeaderRow(sheet.rows);
   const headers = (sheet.rows[headerRow] ?? []).map(asText);
   const body = sheet.rows.slice(headerRow + 1);
   const width = Math.max(headers.length, ...body.slice(0, 50).map((r) => r.length));

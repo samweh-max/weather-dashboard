@@ -4,7 +4,7 @@ import { textToCondition } from '../conditions';
 import { BASE, getJson } from '../server/http';
 import { cached } from '../server/cache';
 import { localDate, toIsoUtc } from '../time';
-import type { Condition, CurrentConditions, Location, Series, TimeBlock, WeatherDataset } from '../types';
+import type { Condition, CurrentConditions, Location, Series, TimeBlock } from '../types';
 import type { Provider } from './types';
 
 /**
