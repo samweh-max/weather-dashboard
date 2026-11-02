@@ -2,6 +2,10 @@
 
 A multi-source weather dashboard built on **free** weather data. Check today's weather on an animated homepage, compare independent forecasts side by side, explore weather history back to 1940, import your own Excel records, and export everything to clean `.xlsx` workbooks.
 
+## View it in your browser (no install)
+
+On the GitHub repository page, click **Code → Codespaces → Create codespace on main**. GitHub sets everything up and starts the app; after a minute or two the app opens in a new browser tab (if it doesn't, open the **Ports** tab and click the globe next to port 3000). Codespaces is free for up to 60 hours a month on a personal account. Stop the codespace from <https://github.com/codespaces> when you're done.
+
 ## Quick start
 
 Requires **Node.js 22.13 or newer** (uses the built-in `node:sqlite`, so there is nothing native to compile).
