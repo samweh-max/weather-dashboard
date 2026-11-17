@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { homeStation, homeStationLatest } from '@/lib/providers/campbellon';
 import { fetchAirQuality, fetchMarine } from '@/lib/providers/openmeteo';
 import { cached } from '@/lib/server/cache';
 import { locationFromParams } from '@/lib/server/location';
-import type { ProviderResult, WeatherDataset } from '@/lib/types';
+import type { CurrentConditions, ProviderResult, WeatherDataset } from '@/lib/types';
 
 /** Air quality and marine data: supplementary layers shown alongside any provider. */
 export async function GET(req: Request) {
@@ -21,7 +22,16 @@ export async function GET(req: Request) {
       wrap('om-air', 'CAMS air quality', () => cached(`air:${key}`, 30 * 60, () => fetchAirQuality(loc))),
       wrap('om-marine', 'Marine forecast', () => cached(`marine:${key}`, 60 * 60, () => fetchMarine(loc))),
     ]);
-    return NextResponse.json({ air, marine });
+    // Home station: only when configured and (if its position is set) near this location.
+    let station: { ok: true; current: CurrentConditions | null } | { ok: false; error: string } | null = null;
+    if (homeStation.enabled && homeStation.covers(loc)) {
+      try {
+        station = { ok: true, current: await cached('home-station:latest', 5 * 60, homeStationLatest) };
+      } catch (e) {
+        station = { ok: false, error: (e as Error).message };
+      }
+    }
+    return NextResponse.json({ air, marine, station });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }

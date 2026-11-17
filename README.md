@@ -68,6 +68,23 @@ src/app/*/page.tsx          pages
 
 **Adding a variable**: add it to `VARIABLES` in `src/lib/variables.ts` and map it in the providers that offer it.
 
+## Home weather station (CampbellON)
+
+If you have a Campbell Scientific station on [CampbellON](https://campbellon.com/docs/), the app can show its measurements as a separate, clearly labelled *observed* source: a "Home station" card on the home page, and a "Home weather station" source on the History and Export pages.
+
+Put these in `.env.local` (git-ignored) or in your Codespaces secrets, never in a committed file:
+
+| Variable | What it is |
+| --- | --- |
+| `CAMPBELLON_ORG_ID` | Your CampbellON organisation ID |
+| `CAMPBELLON_STATION_ID` | The station's ID |
+| `CAMPBELLON_CLIENT_ID` + `CAMPBELLON_CLIENT_SECRET` | A CampbellON service account (preferred) |
+| `CAMPBELLON_USERNAME` + `CAMPBELLON_PASSWORD` | Or your own sign-in, if your organisation doesn't enforce SSO |
+| `CAMPBELLON_STATION_LAT` / `CAMPBELLON_STATION_LON` | Optional. Only offer the station for locations within 25 km of it |
+| `CAMPBELLON_BASE` | Optional. API host, default `https://campbellon.com` |
+
+The app maps the logger's conventional field names (`AirTemp_C`, `RH`, `WS_ms_Avg`, `WS_ms_Max`, `WindDir`, `BP_mbar`, `Rain_mm_Tot`, `SlrW_Avg`…) onto its own variables and converts units. Fields it can't match, or whose unit it doesn't recognise, are left out and listed in the dataset notes; nothing is guessed. Barometric pressure is shown as *surface (station) pressure* unless the field name says it is sea-level.
+
 ## Testing
 
 ```bash
@@ -83,6 +100,10 @@ OPEN_METEO_BASE=http://localhost:4010 OPEN_METEO_ARCHIVE_BASE=http://localhost:4
 OPEN_METEO_AIR_BASE=http://localhost:4010 OPEN_METEO_MARINE_BASE=http://localhost:4010 \
 OPEN_METEO_GEO_BASE=http://localhost:4010 METNO_BASE=http://localhost:4010 NWS_BASE=http://localhost:4010 \
 npm run dev
+
+# to also preview the home station card with synthetic data, add:
+# CAMPBELLON_BASE=http://localhost:4010 CAMPBELLON_ORG_ID=mock CAMPBELLON_STATION_ID=mock \
+# CAMPBELLON_CLIENT_ID=mock CAMPBELLON_CLIENT_SECRET=mock
 ```
 
 Never set these variables in a real deployment.

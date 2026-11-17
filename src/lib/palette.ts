@@ -22,6 +22,7 @@ const SLOTS: Record<string, SeriesStyle> = {
   metoffice: { color: 'var(--series-8)', dash: '6 4' },
   'om-era5': { color: 'var(--series-3)' },
   'nws-obs': { color: 'var(--series-4)', dash: '2 3' },
+  'home-station': { color: 'var(--series-6)', dash: '2 3' },
 };
 
 export function seriesStyle(id: string, fallbackIndex = 0): SeriesStyle {

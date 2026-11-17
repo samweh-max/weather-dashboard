@@ -184,6 +184,36 @@ function air() {
   return { timezone: TZ.name, utc_offset_seconds: 0, current: { time: Math.floor(Date.now() / 3600000) * 3600, ...vals }, hourly };
 }
 
+// CampbellON (home station). Synthetic values; never real station data.
+const CC_STREAMS = [
+  { id: 'mock-t', metadata: { field: 'AirTemp_C', table: 'MetData', uom: '°C', status: 'active' } },
+  { id: 'mock-rh', metadata: { field: 'RH', table: 'MetData', uom: '%', status: 'active' } },
+  { id: 'mock-ws', metadata: { field: 'WS_ms_Avg', table: 'MetData', uom: 'm/s', status: 'active' } },
+  { id: 'mock-wd', metadata: { field: 'WindDir', table: 'MetData', uom: 'deg', status: 'active' } },
+  { id: 'mock-bp', metadata: { field: 'BP_mbar', table: 'MetData', uom: 'mbar', status: 'active' } },
+  { id: 'mock-rain', metadata: { field: 'Rain_mm_Tot', table: 'MetData', uom: 'mm', status: 'active' } },
+];
+const ccVal = (id, t) => ({ 'mock-t': 11 + 4 * Math.sin(t / 3600 / 24 * 2 * Math.PI), 'mock-rh': 78, 'mock-ws': 3.2, 'mock-wd': 225, 'mock-bp': 1003.4, 'mock-rain': (t / 900) % 7 === 0 ? 0.2 : 0 })[id];
+function campbellon(url) {
+  if (url.pathname === '/api/v1/tokens') return { access_token: 'mock-token', expires_in: 3600 };
+  if (url.pathname.endsWith('/datastreams')) return CC_STREAMS;
+  if (url.pathname.endsWith('/datapoints/latest')) {
+    const ts = new Date(Math.floor(Date.now() / 300000) * 300000).toISOString();
+    return { data: Object.fromEntries(CC_STREAMS.map((s) => [s.id, { ts, value: ccVal(s.id, Date.parse(ts) / 1000), field_name: s.metadata.field, unit: s.metadata.uom }])) };
+  }
+  if (url.pathname.endsWith('/datapoints')) {
+    const ids = (url.searchParams.get('datastream_ids') || '').split(',');
+    const raw = url.searchParams.get('resolution') === 'raw';
+    const step = raw ? 900 : 3600;
+    const from = Math.ceil(Date.parse(url.searchParams.get('start')) / 1000 / step) * step;
+    const to = Math.min(Date.parse(url.searchParams.get('end')) / 1000, Date.now() / 1000);
+    const data = [];
+    for (let t = from; t <= to; t += step) data.push({ ts: new Date(t * 1000).toISOString(), v: Object.fromEntries(ids.map((id) => [id, ccVal(id, t)])) });
+    return { meta: { truncated: false }, data };
+  }
+  return null;
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   let body;
@@ -195,6 +225,7 @@ const server = http.createServer((req, res) => {
   else if (url.pathname === '/v1/search') body = geocode(url);
   else if (url.pathname.startsWith('/weatherapi/locationforecast')) body = metno();
   else if (url.pathname.startsWith('/data/')) body = { last_run_initialisation_time: Math.floor(Date.now() / 1000) - 5 * 3600, last_run_availability_time: Math.floor(Date.now() / 1000) - 3 * 3600 };
+  else if (url.pathname.startsWith('/api/v1/')) { body = campbellon(url); if (!body) { status = 404; body = { reason: 'not mocked' }; } }
   else if (url.pathname.startsWith('/points/')) { status = 404; body = { title: 'Data Unavailable For Requested Point' }; }
   else { status = 404; body = { reason: 'not mocked' }; }
   res.writeHead(status, { 'content-type': 'application/json' });

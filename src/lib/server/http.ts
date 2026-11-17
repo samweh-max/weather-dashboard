@@ -54,4 +54,6 @@ export const BASE = {
   nws: process.env.NWS_BASE || 'https://api.weather.gov',
   metno: process.env.METNO_BASE || 'https://api.met.no',
   metOffice: process.env.MET_OFFICE_BASE || 'https://data.hub.api.metoffice.gov.uk',
+  // Not stated in the CampbellON docs; override with CAMPBELLON_BASE if your account uses another host.
+  campbellon: process.env.CAMPBELLON_BASE || 'https://campbellon.com',
 };
