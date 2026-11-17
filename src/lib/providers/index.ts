@@ -1,6 +1,7 @@
 import 'server-only';
 import { cached } from '../server/cache';
 import type { Location, ProviderResult, WeatherDataset } from '../types';
+import { homeStation } from './campbellon';
 import { metOffice } from './metoffice';
 import { metno } from './metno';
 import { nwsForecast, nwsObservations } from './nws';
@@ -18,6 +19,7 @@ export const PROVIDERS: Provider[] = [
   metOffice,
   openMeteoArchive,
   nwsObservations,
+  homeStation,
 ];
 
 export function getProvider(id: string): Provider | undefined {
@@ -31,7 +33,7 @@ export function providerInfo(p: Provider, loc?: Location): ProviderInfo & { avai
   void _f;
   void _h;
   let available = p.enabled;
-  let unavailableReason: string | undefined = p.enabled ? undefined : 'Requires an API key (see Sources page).';
+  let unavailableReason: string | undefined = p.enabled ? undefined : p.id === 'home-station' ? 'Not connected yet (see Sources page).' : 'Requires an API key (see Sources page).';
   if (available && loc && !p.covers(loc)) {
     available = false;
     unavailableReason = `Not available for this location (${p.coverage}).`;

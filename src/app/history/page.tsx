@@ -54,7 +54,7 @@ export default function HistoryPage() {
       setRange([s, e]);
       setPreset('custom');
       setRes(importedMeta.resolution);
-    } else if (source === 'nws-obs') {
+    } else if (source === 'nws-obs' || source === 'home-station') {
       setRange([addDays(todayIn('UTC'), -6), todayIn('UTC')]);
       setPreset('custom');
       setRes('hourly');
@@ -105,7 +105,7 @@ export default function HistoryPage() {
         title="History"
         subtitle={
           <>
-            Explore past weather back to 1940 from the ERA5 reanalysis, recent US station observations, or your own imported datasets. Use the{' '}
+            Explore past weather back to 1940 from the ERA5 reanalysis, recent US station observations, your home weather station, or your own imported datasets. Use the{' '}
             <Link href="/export" className="underline">
               Export
             </Link>{' '}

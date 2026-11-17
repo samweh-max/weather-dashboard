@@ -12,8 +12,15 @@ import { useProviders } from '@/components/useProviders';
 import { WeatherIcon } from '@/components/WeatherIcon';
 import { phaseFor, WeatherScene } from '@/components/WeatherScene';
 import { CONDITION_LABELS } from '@/lib/conditions';
-import { displayZone, formatDate, formatTime, localDate, todayIn } from '@/lib/time';
-import type { ProviderResult, WeatherDataset } from '@/lib/types';
+import { displayZone, formatDate, formatTime, localDate, relativeAge, todayIn } from '@/lib/time';
+import type { CurrentConditions, ProviderResult, WeatherDataset } from '@/lib/types';
+
+type Extras = {
+  air: ProviderResult;
+  marine: ProviderResult;
+  /** null when no home station is configured for this location. */
+  station: { ok: true; current: CurrentConditions | null } | { ok: false; error: string } | null;
+};
 import { formatValue, toDisplay, unitFor } from '@/lib/units';
 import { getVariable, CATEGORY_LABELS, type Category } from '@/lib/variables';
 
@@ -33,7 +40,7 @@ export default function HomePage() {
   const url = ready ? `/api/weather?provider=${providerId}&${locationQuery(location)}` : null;
   const { data: result, loading, reload } = useJson<ProviderResult>(url);
   const extrasUrl = ready ? `/api/extras?${locationQuery(location)}` : null;
-  const { data: extras } = useJson<{ air: ProviderResult; marine: ProviderResult }>(extrasUrl);
+  const { data: extras } = useJson<Extras>(extrasUrl);
   const now = useNow();
 
   // If the chosen provider doesn't cover this location (e.g. NWS outside the US), fall back to Open-Meteo.
@@ -449,12 +456,14 @@ function DetailGrid({
   day: (id: string) => number | null;
   tz: string;
   astro?: { sunrise: string | null; sunset: string | null };
-  extras: { air: ProviderResult; marine: ProviderResult } | null;
+  extras: Extras | null;
 }) {
   const { prefs } = useApp();
   const u = prefs.units;
   const air = extras?.air?.ok ? extras.air.data : null;
   const marine = extras?.marine?.ok && extras.marine.data.current ? extras.marine.data : null;
+  const station = extras?.station ?? null;
+  const stationNow = station?.ok ? station.current : null;
   return (
     <section>
       <h2 className="section-title mb-3">All conditions</h2>
@@ -496,6 +505,29 @@ function DetailGrid({
             </dl>
           )}
         </div>
+        {station && (
+          <div className="card">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Home station</h3>
+              <KindBadge kind="observation" />
+            </div>
+            {!station.ok && <p className="text-sm text-muted">Couldn&apos;t read your station right now: {station.error}</p>}
+            {station.ok && !stationNow && <p className="text-sm text-muted">Your station hasn&apos;t reported in the last 3 hours.</p>}
+            {stationNow && (
+              <>
+                <dl className="space-y-1.5 text-sm">
+                  {STATION_VARS.filter((id) => stationNow.values[id] !== undefined).map((id) => {
+                    const v = stationNow.values[id] ?? null;
+                    return <Row key={id} label={getVariable(id)!.label} value={id === 'wind_direction' && v !== null ? `${Math.round(v)}° ${compass(v)}` : formatValue(id, v, u)} />;
+                  })}
+                </dl>
+                <p className="mt-2 text-[11px] text-muted">
+                  Measured at {formatTime(stationNow.time, tz)} ({relativeAge(stationNow.time)})
+                </p>
+              </>
+            )}
+          </div>
+        )}
         <div className="card">
           <h3 className="mb-2 text-sm font-semibold">Marine</h3>
           {!extras && <Skeleton className="h-24" />}
@@ -512,6 +544,8 @@ function DetailGrid({
     </section>
   );
 }
+
+const STATION_VARS = ['temperature', 'relative_humidity', 'dew_point', 'wind_speed', 'wind_gusts', 'wind_direction', 'surface_pressure', 'pressure_msl', 'shortwave_radiation', 'uv_index'];
 
 function Row({ label, value, origin, note }: { label: string; value: string; origin?: 'provider' | 'calculated'; note?: string }) {
   return (
